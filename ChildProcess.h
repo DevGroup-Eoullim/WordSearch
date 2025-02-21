@@ -1,6 +1,7 @@
 #pragma once
 #include "framework.h"
 
+
 class ChildProcess
 {
 private:
@@ -11,6 +12,6 @@ private:
 public:
 	ChildProcess();
 	bool Translate(CString str, CString& output);
-	bool ExtractPart(CString str);
+	int ExtractPart(CString str);
 };
 

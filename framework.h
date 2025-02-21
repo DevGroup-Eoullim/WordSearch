@@ -1,5 +1,6 @@
 ﻿#pragma once
 
+#define _CRT_NON_CONFORMING_SWPRINTFS
 #define _CRT_SECURE_NO_WARNINGS
 
 #ifndef VC_EXTRALEAN
@@ -56,3 +57,5 @@
 #define SM_DONE (WM_USER+1) //Search Messaage Done
 #define SM_ERROR (WM_USER+2) //Search Message error/ word not found
 #define SM_TRANSLATE (WM_USER+3)
+#define LIST_SEL_CHANGE (WM_USER+4)
+#define OPEN_INPUT_DLG (WM_USER+5)

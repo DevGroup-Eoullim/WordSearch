@@ -1,34 +1,28 @@
 #pragma once
 
 #include "framework.h"
+#include "database.h"
 #include <cjson/cJSON.h>
 #include <vector>
 #include <map>
 
-struct Meaning {
-	CString partOfSpeech;
-	//std::vector<CString> examples; //예문
-	std::vector<CString> definitions;
-	std::vector<CString> synonyms; //동의어
-	std::vector<CString> antonyms; //반어
-};
+//map으로 할까봐
 
-class DictionaryData {
-private:
-	CString word;
-	std::vector<Meaning*> meanings;
-public:
-	DictionaryData(cJSON* json);
-	CString GetDictionaryString();
-	CString getWord();
-};
+//struct Meaning {
+//	CString partOfSpeech;
+//	//std::vector<CString> examples; //예문
+//	std::vector<CString> definitions;
+//	//std::vector<CString> synonyms; //동의어
+//	//std::vector<CString> antonyms; //반어
+//};
 
-class Dictionary {
+class Dictionary:public Database {
 private:
-	std::map<CString, DictionaryData*> dict;
+	DictMap dict;
 public:
 	CString GetDictionaryString(CString word);
 	void Append(DictionaryData* dictData);
+	void Load();
 };
 
 CStringW ConvertUTF8ToCStringW(const CStringA& utf8String);

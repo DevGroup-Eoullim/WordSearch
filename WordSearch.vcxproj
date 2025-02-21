@@ -196,13 +196,23 @@
     <ClInclude Include="Database.h" />
     <ClInclude Include="DefinitionEdit.h" />
     <ClInclude Include="dictionary.h" />
+    <ClInclude Include="DictionaryData.h" />
+    <ClInclude Include="DictPlatform.h" />
+    <ClInclude Include="EditContainer.h" />
     <ClInclude Include="framework.h" />
+    <ClInclude Include="InputBtPlatform.h" />
     <ClInclude Include="InputSentenceDlg.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="searcher.h" />
+    <ClInclude Include="SearcherEdit.h" />
+    <ClInclude Include="SearchPlatform.h" />
     <ClInclude Include="SentenceEdit.h" />
+    <ClInclude Include="Style.h" />
     <ClInclude Include="targetver.h" />
+    <ClInclude Include="TextLoader.h" />
+    <ClInclude Include="TranslatePlatform.h" />
+    <ClInclude Include="WordsPlatform.h" />
     <ClInclude Include="WordSearch.h" />
     <ClInclude Include="WordSearchDlg.h" />
   </ItemGroup>
@@ -211,7 +221,11 @@
     <ClCompile Include="CRichEditBase.cpp" />
     <ClCompile Include="Database.cpp" />
     <ClCompile Include="DefinitionEdit.cpp" />
+    <ClCompile Include="DicionaryData.cpp" />
     <ClCompile Include="Dictionary.cpp" />
+    <ClCompile Include="DictPlatform.cpp" />
+    <ClCompile Include="EditContainer.cpp" />
+    <ClCompile Include="InputBtPlatform.cpp" />
     <ClCompile Include="InputSentenceDlg.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
@@ -220,7 +234,13 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="Searcher.cpp" />
+    <ClCompile Include="SearcherEdit.cpp" />
+    <ClCompile Include="SearchPlatform.cpp" />
     <ClCompile Include="SentenceEdit.cpp" />
+    <ClCompile Include="Style.cpp" />
+    <ClCompile Include="TextLoader.cpp" />
+    <ClCompile Include="TranslatePlatform.cpp" />
+    <ClCompile Include="WordsPlatform.cpp" />
     <ClCompile Include="WordSearch.cpp" />
     <ClCompile Include="WordSearchDlg.cpp" />
   </ItemGroup>

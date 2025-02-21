@@ -10,32 +10,31 @@
 #include <thread>
 #include "InputSentenceDlg.h"
 #include <richedit.h>
+#include "Database.h"
+#include "Style.h"
 
 
 #define SELECT_WORD 1
 #define SELECT_SENTENCE 2
 
+void FindTextThread(SentenceEdit* ed, CString text, int textId) {
+    WDVec wordDataVec;
+    dbManager.GetWordAll(textId, text, &wordDataVec);
 
-void FindTextThread(SentenceEdit* ed, CString text, long origin) {
-//void FindTextThread(){
-    FINDTEXTEXW ft;
-    ZeroMemory(&ft, sizeof(FINDTEXTEXW));
-    ft.chrg.cpMin = 0;
-    ft.chrg.cpMax = -1;// ed->GetWindowTextLengthW();
-    ft.lpstrText = text;
-    //ed->HideSelection(true, true);
-    while (ed->FindTextW(FR_DOWN| FR_WHOLEWORD, &ft) != -1) {
-        printf("start: %d\n", ft.chrg.cpMin);
+    for (WDVec::iterator iter = wordDataVec.begin(); iter != wordDataVec.end(); iter++) {
+        NS_DB::WordData wd = *iter;
+        CHARFORMAT2 style = TextStyle::style.getPosStyle(wd.pos);
 
-        ed->SetSel(ft.chrgText);
-        ed->SetSelectionCharFormat(ed->getSelCharStyle());
-        ft.chrg.cpMin = ft.chrgText.cpMax;
+        ed->SetSel(wd.start, wd.end);
+
+        TextStyle::style.AddSelect(wd.start, style);
+        style = TextStyle::style.GetWordTopStyle(wd.start);
+        ed->SetSelectionCharFormat(style);
     }
-    ed->SetSel(origin, origin);
 }
 void SentenceEdit::SearchWordThread(CString str) {
     DictionaryData* dictData;
-    dictData = searcher->SearchWord(str);
+    dictData = searcher.SearchWord(str);
     if (!dictData) {
         parent->SendMessage(WM_COMMAND, SM_ERROR, (WPARAM)str.GetString());
         printf("error\n");
@@ -51,32 +50,18 @@ SentenceEdit::SentenceEdit() {
     CHARRANGE chrg(0, -1);
     textToFind.chrg = chrg;
 
-    WORD r = 255, g = 200, b = 200;
-    //WORD r = 100, g = 120, b = 150;
-
-    ZeroMemory(&selCharStyle, sizeof(CHARFORMAT));
-    selCharStyle.cbSize = sizeof(CHARFORMAT);
-    selCharStyle.dwMask = CFM_BACKCOLOR|CFM_COLOR;
-    selCharStyle.crBackColor = RGB(r,g,b);
-    selCharStyle.crTextColor = RGB(255 - r, 255 - g, 255 - b);
-
     selectionMode = SELECT_WORD;
-    
-    //SetReadOnly();
 }
 SentenceEdit::~SentenceEdit() {}
 
 BEGIN_MESSAGE_MAP(SentenceEdit, CRichEditCtrl)
     ON_WM_KEYDOWN()
-//    ON_WM_LBUTTONDOWN()
-//    ON_WM_SETCURSOR()
     ON_WM_SETFOCUS()
-    //ON_WM_MOUSEHOVER()
     ON_WM_MOUSEMOVE()
     ON_WM_LBUTTONDOWN()
     ON_WM_LBUTTONUP()
-//    ON_WM_KEYUP()
-ON_WM_KEYUP()
+    ON_WM_KEYUP()
+//    ON_WM_NCPAINT()
 END_MESSAGE_MAP()
 
 void SentenceEdit::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
@@ -85,43 +70,6 @@ void SentenceEdit::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
     CString result;
     
     switch (nChar) {
-    case 'S':
-        
-        if (GetKeyState(VK_LCONTROL)&0x8000) {
-            CString str;
-            DictionaryData* dictData;
-            CHARRANGE cr = { 0 };
-
-            GetSel(cr);
-            if (cr.cpMin == cr.cpMax) {
-                return;
-            }
-            str = GetSelText();
-            //printf("replace return: %d\n", str.Replace(L" ", L""));
-            str.Replace(L" ", L"");
-            str.Replace(L"\r\n", L"");
-            cr.cpMax = cr.cpMin + str.GetLength();
-            //printf("start: %d\n", cr.cpMin);
-            SetSel(cr);
-
-            textToFind.lpstrText = str;
-
-            dictData = searcher->SearchWord(str);
-            if (!dictData) {
-                parent->SendMessage(WM_COMMAND, SM_ERROR, (WPARAM)str.GetString());
-                printf("error\n");
-                return;
-            }
-            parent->SendMessage(WM_COMMAND,SM_DONE, (WPARAM)dictData);
-
-            //FindText(FR_WHOLEWORD, &textToFind);
-            SetSelectionCharFormat(selCharStyle);
-            
-            std::thread hFindThread(FindTextThread, (SentenceEdit*)(parent->GetDlgItem(IDC_EDIT_SENTENCE)), dictData->getWord(), cr.cpMax);
-            hFindThread.detach();
-            printf("done\n");
-        }
-        break;
     case VK_CONTROL:
         if (selectionMode != SELECT_SENTENCE) {
             reDraw = true;
@@ -151,23 +99,25 @@ void SentenceEdit::OnKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags)
 }
 
 
-void SentenceEdit::Init(CWnd* parent, Searcher* searcher) {
+void SentenceEdit::Init(CWnd* parent) {
 
     this->parent = parent;
-    this->searcher = searcher;
+    //this->searcher = searcher;
+
 
     SendMessage(EM_SETTEXTMODE, TM_RICHTEXT);
     SendMessage(EM_SETWORDWRAPMODE, 1);
 
-    ZeroMemory(&charStyle, sizeof(CHARFORMAT2));
-    charStyle.cbSize = sizeof(CHARFORMAT2);
-    charStyle.dwMask = CFM_SIZE | CFM_FACE | CFM_WEIGHT;
-    wcscpy(charStyle.szFaceName, L"Cambria");
-    charStyle.yHeight = 19 * 15; //19폰트?
-    charStyle.wWeight = FW_MEDIUM;
-    //charStyle.bCharSet = HANGEUL_CHARSET;
+    /*CRect rect;
+    CRgn rgn;
 
-    SetDefaultCharFormat(charStyle);
+    GetClientRect(rect);
+    rgn.CreateRoundRectRgn(rect.left, rect.top, rect.right, rect.bottom, 50,50);
+
+    ::SetWindowRgn(this->m_hWnd, (HRGN)rgn, TRUE);*/
+
+    CHARFORMAT2 style = TextStyle::style.getDefaultStyle();
+    SetDefaultCharFormat(style);
 
     SetReadOnly(1);
 }
@@ -176,51 +126,10 @@ CHARFORMAT2& SentenceEdit::getSelCharStyle() {
     return selCharStyle;
 }
 
-
-
-//void SentenceEdit::OnLButtonDown(UINT nFlags, CPoint point)
-//{
-//    if (GetKeyState(VK_LCONTROL) & 0x8000) {
-//        InputSentenceDlg dlg;
-//        int result=dlg.DoModal();
-//        if (result == IDOK) {
-//            SetWindowTextW(dlg.getSentence());
-//        }
-//    }
-    // TODO: 여기에 메시지 처리기 코드를 추가 및/또는 기본값을 호출합니다.
-    // 문장 입력 대화상자 열기
-    
-//    CRichEditCtrl::OnLButtonDown(nFlags, point);
-//}
-
-
-//BOOL SentenceEdit::OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message)
-//{
-    // TODO: 여기에 메시지 처리기 코드를 추가 및/또는 기본값을 호출합니다.
-//    SetCursor(NULL);
-//    return TRUE;
-//}
-
-
 void SentenceEdit::OnSetFocus(CWnd* pOldWnd)
 {
-    
-    //SetReadOnly(1);
-    /*HideSelection(true, false);
-    CRichEditCtrl::OnSetFocus(pOldWnd);*/
-    //CRichEditCtrl::OnSetFocus(pOldWnd);
     ::HideCaret(pOldWnd->GetSafeHwnd());
-    // TODO: 여기에 메시지 처리기 코드를 추가합니다.
 }
-
-
-//void SentenceEdit::OnMouseHover(UINT nFlags, CPoint point)
-//{
-    // TODO: 여기에 메시지 처리기 코드를 추가 및/또는 기본값을 호출합니다.
-//    printf("%d, %d\n", point.x, point.y);
-//    CRichEditCtrl::OnMouseHover(nFlags, point);
-//}
-
 
 void SentenceEdit::OnMouseMove(UINT nFlags, CPoint point)
 {
@@ -228,30 +137,28 @@ void SentenceEdit::OnMouseMove(UINT nFlags, CPoint point)
     if (GetFocus()->GetSafeHwnd() != GetSafeHwnd()) {
         SetFocus();
     }
+    if (textId == -1) {
+        CRichEditCtrl::OnMouseMove(nFlags, point);
+        return;
+    }
     
-    //static CHARRANGE targetRange = { -1,-1 };
     static CHARRANGE oldWordRange = { -1,-1 };
     int idx=CharFromPos(point);
-    
-    CHARFORMAT2 cf;
-    ZeroMemory(&cf, sizeof(CHARFORMAT2));
-    cf.cbSize = sizeof(CHARFORMAT2);
-    cf.dwMask = CFM_UNDERLINE;
-    cf.dwEffects = CFE_UNDERLINE;
 
-    CHARFORMAT2 originStyle;
-    ZeroMemory(&originStyle, sizeof(CHARFORMAT2));
-    originStyle.cbSize = sizeof(CHARFORMAT2);
-    originStyle.dwMask = CFM_ALL;
-    wcscpy(originStyle.szFaceName, L"Cambria");
-    originStyle.yHeight = 19 * 15; //19폰트?
-    originStyle.wWeight = FW_MEDIUM;
-    originStyle.dwEffects = 0;
-    
+    static CHARFORMAT2 origin;
+    CHARFORMAT2 highlight = TextStyle::style.getHighlightStyle();
+
     if ((idx <= targetRange.cpMin) || (idx >= targetRange.cpMax) || reDraw) {
         reDraw = false;
+        CHARRANGE oldRange = targetRange;
+        CHARFORMAT2 style;
+        CHARFORMAT2 origin;
+        origin.cbSize = sizeof(CHARFORMAT);
+
         SetSel(targetRange);
-        SetSelectionCharFormat(originStyle);
+        GetSelectionCharFormat(origin);
+        TextStyle::style.RemoveHighlight(&origin);
+        SetSelectionCharFormat(origin);
 
         switch (selectionMode) {
         case SELECT_WORD:
@@ -262,7 +169,9 @@ void SentenceEdit::OnMouseMove(UINT nFlags, CPoint point)
             break;
         }
         SetSel(targetRange);
-        SetSelectionCharFormat(cf);
+        GetSelectionCharFormat(origin);
+        TextStyle::style.AddHighlight(&origin);
+        SetSelectionCharFormat(origin);
     }
 
     CRichEditCtrl::OnMouseMove(nFlags, point);
@@ -278,115 +187,39 @@ void SentenceEdit::OnLButtonDown(UINT nFlags, CPoint point)
 
 void SentenceEdit::OnLButtonUp(UINT nFlags, CPoint point)
 {
-    //CHARRANGE origin,wordRange;
     CString* pStr=new CString;
     *pStr = GetSelText();
 
     CString str = *pStr;
     DictionaryData* dictData;
 
-    /*GetSel(origin);
-    wordRange=GetWord(origin.cpMin);*/
     SetSel(targetRange);
 
     
     switch (selectionMode) {
     case SELECT_WORD:
         if (str.GetLength()) {
-            //SetSelectionCharFormat(selCharStyle);
-
             std::thread hSearchThread(&SentenceEdit::SearchWordThread, this, str);
             hSearchThread.detach();
 
-            std::thread hFindThread(FindTextThread, (SentenceEdit*)(parent->GetDlgItem(IDC_EDIT_SENTENCE)), str, targetRange.cpMax);
+            std::thread hFindThread(FindTextThread, this, str, textId);//(SentenceEdit*)(parent->GetDlgItem(IDC_EDIT_SENTENCE))
             hFindThread.detach();
         }
         break;
     case SELECT_SENTENCE:
         parent->SendMessage(WM_COMMAND, SM_TRANSLATE, (LPARAM)pStr);
-        /*CStringA str2(str);
-        printf("%s\n", str2);*/
         break;
     }
-    
-    //printf("replace return: %d\n", str.Replace(L" ", L""));
-
-   /* dictData = searcher->SearchWord(str);
-    if (!dictData) {
-        parent->SendMessage(WM_COMMAND, SM_ERROR, (WPARAM)str.GetString());
-        printf("error\n");
-        return;
-    }
-    parent->SendMessage(WM_COMMAND, SM_DONE, (WPARAM)dictData);*/
-
-    //FindText(FR_WHOLEWORD, &textToFind);
-    
-
-    //printf("%d\n",origin.cpMin);
     CRichEditCtrl::OnLButtonUp(nFlags, point);
 }
 CHARRANGE SentenceEdit::GetWord(long origin) {
-    long start, end;
-    wchar_t startCh='a';
-    wchar_t endCh = 'a';
-    bool startDone = false, endDone = false;
+    long start, end=0;
     CHARRANGE result;
 
     HideSelection(true, false);
 
-    for (start = origin, end = origin; !(startDone && endDone);) {
-        if (!startDone) {
-            SetSel(start - 1, start);
-            startCh = GetSelText().GetAt(0);
-            start--;
-            if (!((startCh >= 'A') && (startCh <= 'Z') || (startCh >= 'a') && (startCh <= 'z'))) {
-                //printf("%d\n", start);
-                start++;
-                startDone = true;
-            }
-        }
-        if (!endDone) {
-            SetSel(end, end + 1);
-            endCh = GetSelText().GetAt(0);
-            end++;
-            if (!((endCh >= 'A') && (endCh <= 'Z') || (endCh >= 'a') && (endCh <= 'z'))) {
-                //printf("%d\n", end);
-                end--;
-                endDone = true;
-            }
-        }
-        
-    }
-    //for (end = origin; end < GetTextLength(); end++) {
-    //    SetSel(end, end + 1);
-    //    endCh = GetSelText().GetAt(0);
-    //    //wprintf(L"%s(%d)\n", endCh, endCh.Compare(L" "));
-    //    if (!((endCh >= 'A') && (endCh <= 'Z') || (endCh >= 'a') && (endCh <= 'z'))) {
-    //        //printf("%d\n", end);
-    //        break;
-    //    }
-    //}
-
-    //for (start = origin; start >= 0; start--) {
-    //    SetSel(start - 1, start);
-    //    startCh = GetSelText().GetAt(0);
-    //    //wprintf(L"%s(%d)\n", startCh, startCh.Compare(L" "));
-    //    if (!((startCh >= 'A') && (startCh <= 'Z') || (startCh >= 'a') && (startCh <= 'z'))) {
-    //        //printf("%d\n", start);
-    //        break;
-    //    }
-    //}
-    //for (end = origin; end < GetTextLength(); end++) {
-    //    SetSel(end, end + 1);
-    //    endCh = GetSelText().GetAt(0);
-    //    //wprintf(L"%s(%d)\n", endCh, endCh.Compare(L" "));
-    //    if (!((endCh >= 'A') && (endCh <= 'Z') || (endCh >= 'a') && (endCh <= 'z'))) {
-    //        //printf("%d\n", end);
-    //        break;
-    //    }
-    //}
-
-    //HideSelection(false, true);
+    start = origin;
+    dbManager.GetWord(textId, &start, &end);
 
     result.cpMax = end;
     result.cpMin = start;
@@ -394,66 +227,53 @@ CHARRANGE SentenceEdit::GetWord(long origin) {
     return result;
 }
 CHARRANGE SentenceEdit::GetSentence(long origin) {
-    long start, end;
+    /*long start, end;
     wchar_t startCh = 'a';
     wchar_t endCh = 'a';
     bool startDone = false, endDone = false;
     CHARRANGE result;
 
+    HideSelection(true, false);*/
+
+    long start, end = 0;
+    CHARRANGE result;
+
     HideSelection(true, false);
 
-    for (start = origin, end = origin; !(startDone && endDone);) {
-        if (!startDone) {
-            SetSel(start - 1, start);
-            startCh = GetSelText().GetAt(0);
-            start--;
-            if ((startCh == '.') || (startCh == '?') || (startCh == '!')) {
-                //printf("%d\n", start);
-                start++;
-                startDone = true;
-            }
-            if (start < 0) {
-                start = 0;
-                startDone = true;
-            }
-        }
-        if (!endDone) {
-            SetSel(end, end + 1);
-            endCh = GetSelText().GetAt(0);
-            end++;
-            if ((endCh == '.') || (endCh == '?') || (endCh == '!')) {
-                //printf("%d\n", end);
-                //end--;
-                endDone = true;
-            }
-            if (end > GetTextLength()) {
-                end = 0;
-                endDone = true;
-            }
-        }
-    }
-    
-    //for (start = origin; start >= 0; start--) {
-    //    SetSel(start - 1, start);
-    //    ch = GetSelText().GetAt(0);
-    //    //wprintf(L"%s(%d)\n", ch, ch.Compare(L" "));
-    //    if ((ch == '.')||(ch == '?')||(ch == '!')) {
-    //        //printf("%d\n", start);
-    //        start++;
-    //        break;
-    //    }
-    //}
-    //for (end = origin; end < GetTextLength(); end++) {
-    //    SetSel(end, end + 1);
-    //    ch = GetSelText().GetAt(0);
-    //    //wprintf(L"%s(%d)\n", ch, ch.Compare(L" "));
-    //        if ((ch == '.') || (ch == '!') || (ch == '?')) {
-    //        //printf("%d\n", end);
-    //        break;
-    //    }
-    //}
+    start = origin;
+    dbManager.GetSentence(textId, &start, &end);
+    printf("start: %d end: %d\n", start, end);
 
-    //HideSelection(false, true);
+    //for (start = origin, end = origin; !(startDone && endDone);) {
+    //    if (!startDone) {
+    //        SetSel(start - 1, start);
+    //        startCh = GetSelText().GetAt(0);
+    //        start--;
+    //        if ((startCh == '.') || (startCh == '?') || (startCh == '!')) {
+    //            //printf("%d\n", start);
+    //            start++;
+    //            startDone = true;
+    //        }
+    //        if (start < 0) {
+    //            start = 0;
+    //            startDone = true;
+    //        }
+    //    }
+    //    if (!endDone) {
+    //        SetSel(end, end + 1);
+    //        endCh = GetSelText().GetAt(0);
+    //        end++;
+    //        if ((endCh == '.') || (endCh == '?') || (endCh == '!')) {
+    //            //printf("%d\n", end);
+    //            //end--;
+    //            endDone = true;
+    //        }
+    //        if (end > GetTextLength()) {
+    //            end = 0;
+    //            endDone = true;
+    //        }
+    //    }
+    //}
 
     result.cpMax = end;
     result.cpMin = start;
@@ -461,11 +281,16 @@ CHARRANGE SentenceEdit::GetSentence(long origin) {
     return result;
 }
 
-void SentenceEdit::SetText(CString str) {
+void SentenceEdit::setText(CString str) {
     SetWindowText(str);
     //HideSelection(true, true);
     SetSel(0, GetTextLength());
-    SetSelectionCharFormat(charStyle);
+    CHARFORMAT2W style = TextStyle::style.getDefaultStyle();
+    SetSelectionCharFormat(style);
+}
+
+void SentenceEdit::setTextId(int textId) {
+    this->textId = textId;
 }
 
 void SentenceEdit::CallOnMouseMove() {
@@ -482,3 +307,36 @@ void SentenceEdit::CallOnMouseMove() {
 
     OnMouseMove(nFlags, point);
 }
+
+//void SentenceEdit::OnNcPaint()
+//{
+    // TODO: 여기에 메시지 처리기 코드를 추가합니다.
+    // 그리기 메시지에 대해서는 CRichEditCtrl::OnNcPaint()을(를) 호출하지 마십시오.
+//    CRect rcWindow;
+//    GetWindowRect(&rcWindow);
+//    rcWindow.OffsetRect(-rcWindow.left, -rcWindow.top);
+//
+//    int nX = 0;
+//    int nY = 0;
+//    LONG lStyle = ::GetWindowLong(this->GetSafeHwnd(), GWL_STYLE);
+    // WS_BORDER 속성이 적용되어 있느냐 없느냐에 따라 두께 계산
+//    if (lStyle & WS_BORDER)
+//    {
+//        nX = GetSystemMetrics(SM_CXSIZEFRAME);
+//        nY = GetSystemMetrics(SM_CYSIZEFRAME);
+//    }
+//    else
+//    {
+//        nX = GetSystemMetrics(SM_CXSIZEFRAME) - GetSystemMetrics(SM_CXBORDER);
+//        nY = GetSystemMetrics(SM_CYSIZEFRAME) - GetSystemMetrics(SM_CYBORDER);
+//    }
+//
+//    CDC* pDC = GetWindowDC();
+    // 테두리 영역만을 위해 가운데 영역 제외
+//    pDC->ExcludeClipRect(nX, nY, rcWindow.right - nX, rcWindow.bottom - nY);
+//    {
+        // 테두리에 그릴 내용
+//        pDC->FillSolidRect(&rcWindow, RGB(255, 0, 0));
+//    }
+//    ReleaseDC(pDC);
+//}

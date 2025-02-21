@@ -7,7 +7,11 @@
 #include "DefinitionEdit.h"
 #include "searcher.h"
 #include "dictionary.h"
-
+#include "SearchPlatform.h"
+#include "TranslatePlatform.h"
+#include "DictPlatform.h"
+#include "WordsPlatform.h"
+#include "InputBtPlatform.h"
 
 // CWordSearchDlg 대화 상자
 class CWordSearchDlg : public CDialogEx
@@ -40,12 +44,22 @@ protected:
 	DECLARE_MESSAGE_MAP()
 private:
 	Searcher searcher;
-	DefinitionEdit edDefinition;
+	DefinitionEdit* edDefinition;
 	Dictionary dictionary;
-	CFont font;
+	Dictionary globalDict;
+	//CFont font;
 	ChildProcess cp;
-	SentenceEdit edSentence;
-	CRichEditCtrl edTranslate;
+	SentenceEdit* edSentence;
+	CRichEditCtrl* edTranslate;
+	CListBox* liWords;
+	CButton* btOpenInput;
+
+
+	SearchPlatform* searchPlatform=0;
+	TranslatePlatform* translatePlatform = 0;
+	DictPlatform* dictPlatform = 0;
+	WordsPlatform* wordsPlatform = 0;
+	InputBtPlatform* inputBtPlatform = 0;
 
 	void SetItemsStyle();
 public:
@@ -57,12 +71,15 @@ public:
 //	afx_msg BOOL OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message);
 //	afx_msg void OnSetFocus(CWnd* pOldWnd);
 //	CListCtrl liWords;
-	afx_msg void OnLbnSelchangeListWords();
-	CListBox liWords;
-	afx_msg void OnClickedBtOpenInput();
+//	afx_msg void OnLbnSelchangeListWords();
+	
+//	afx_msg void OnClickedBtOpenInput();
 //	afx_msg void OnIddWordsearchDialog();
 	virtual BOOL OnCommand(WPARAM wParam, LPARAM lParam);
 //	afx_msg void OnMouseHover(UINT nFlags, CPoint point);
 //	afx_msg void OnKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags);
 	
+	afx_msg void OnSize(UINT nType, int cx, int cy);
+	
+	afx_msg void OnBnClickedButton1();
 };

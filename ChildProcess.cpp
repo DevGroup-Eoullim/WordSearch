@@ -24,22 +24,25 @@ bool ChildProcess::Translate(CString str, CString& output) {
     delete[] cmdLineBuf;
     return result;
 }
-bool ChildProcess::ExtractPart(CString str) {
+int ChildProcess::ExtractPart(CString str) {
     CString output;
     WCHAR* cmdLineBuf = new WCHAR[10000];
     bool result=true;
 
     str.Replace(L"\r\n", LR"( )");
+    str.Replace(L"\"", LR"(\")");
     swprintf(cmdLineBuf, LR"(%s "%s")", spacyPath, str);
     //swprintf(cmdLineBuf, LR"(%s "hello")", spacyPath);
     //wprintf(L"%s\n", cmdLineBuf);
 
 
-    result = ExecuteProcessAndGetOutput(cmdLineBuf);
+    result = ExecuteProcessAndGetOutput(cmdLineBuf, output);
     /*CStringA cmd(cmdLineBuf);
     system(cmd);*/
+    int id = result?_wtoi(output):-1;
+    printf("textid: %d\n", id);
     delete[] cmdLineBuf;
-    return result;
+    return id;
 }
 
 
